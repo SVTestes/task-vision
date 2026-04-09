@@ -439,3 +439,59 @@ Esta regra deve ser seguida sem excecoes em todas as interacoes com este projeto
 3. git add .
 4. git commit -m descricao
 5. git push origin main  (Railway faz deploy automatico)
+
+---
+
+## Regra de Teste via Navegador (REGRA OBRIGATORIA)
+
+Esta regra deve ser seguida por qualquer IA que tenha capacidade de abrir e interagir com um navegador.
+
+### Quando testar via navegador:
+- **SEMPRE** apos fazer deploy de uma alteracao visual (paginas, componentes, estilos)
+- **SEMPRE** quando o usuario reportar um bug visual ou erro em producao
+- **SEMPRE** quando criar uma nova rota/pagina — verificar se carrega corretamente
+- **ANTES** de declarar uma tarefa como concluida, se envolve UI
+
+### Como testar:
+1. Abrir o navegador na URL de producao: `https://task-vision-production.up.railway.app/`
+2. Se necessario fazer login, usar as credenciais do admin (email/senha das env vars)
+3. Navegar ate a pagina alterada e verificar visualmente
+4. Capturar screenshot se relevante
+5. Reportar o resultado ao usuario
+
+### URLs importantes:
+- **Producao:** `https://task-vision-production.up.railway.app/`
+- **Login:** `https://task-vision-production.up.railway.app/login`
+- **Admin:** `https://task-vision-production.up.railway.app/admin/users`
+
+### Objetivo:
+O usuario nao sabe programar e depende da IA para verificar se as mudancas estao funcionando corretamente em producao. A IA deve ser proativa em testar via navegador sempre que possivel.
+
+---
+
+## 2026-04-09 — Fase 3, Etapa 1: Correcao — Pagina de Detalhe do Workspace
+
+### Problema Encontrado
+- Ao clicar no card de um workspace no dashboard, o usuario era levado para `/workspaces/[id]`
+- Essa rota retornava **404** porque nao existia uma pagina (page.tsx) para ela
+- Apenas a API route `/api/workspaces/[id]` existia, mas nao a pagina visual
+
+### Correcao Aplicada
+- Criado `app/(dashboard)/workspaces/[id]/page.tsx` — pagina de detalhe do workspace
+
+### O que a pagina inclui:
+- **Breadcrumb** navegavel: Workspaces > Nome do Workspace
+- **Header** com gradiente do workspace, nome, descricao, contagem de boards/membros, e nome do criador
+- **Secao de Boards** com grid responsiva (ou empty state se nao houver boards)
+- **Secao de Membros** com cards mostrando avatar, nome e role (Dono/Admin/Membro)
+- **Controle de acesso:** somente owner, membros e admins podem ver
+
+### Verificacao:
+- `npm run build` — compilou sem erros, nova rota `ƒ /workspaces/[id]` aparece
+- `npm run lint` — sem erros
+
+### Arquivos Criados:
+- `app/(dashboard)/workspaces/[id]/page.tsx`
+
+### Arquivos Modificados:
+- `.gitignore` — adicionado `.claude/` para ignorar configs locais da IDE
