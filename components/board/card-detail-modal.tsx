@@ -23,6 +23,13 @@ interface ChecklistData {
   items: ChecklistItemData[];
 }
 
+interface LabelData {
+  id: string;
+  name: string | null;
+  color: string;
+  position: number;
+}
+
 interface CardData {
   id: string;
   title: string;
@@ -40,15 +47,32 @@ interface CardDetailModalProps {
   card: CardData;
   listTitle: string;
   userName: string;
+  boardId: string;
   onClose: () => void;
   onUpdate: (card: CardData) => void;
   onDelete: (cardId: string) => void;
+}
+
+const LABEL_COLORS = [
+  { value: "red", bg: "bg-red-500", label: "Vermelho" },
+  { value: "blue", bg: "bg-blue-500", label: "Azul" },
+  { value: "green", bg: "bg-green-500", label: "Verde" },
+  { value: "yellow", bg: "bg-yellow-400", label: "Amarelo" },
+  { value: "purple", bg: "bg-purple-500", label: "Roxo" },
+  { value: "orange", bg: "bg-orange-500", label: "Laranja" },
+  { value: "pink", bg: "bg-pink-500", label: "Rosa" },
+  { value: "cyan", bg: "bg-cyan-500", label: "Ciano" },
+];
+
+function getLabelBg(color: string) {
+  return LABEL_COLORS.find((c) => c.value === color)?.bg || "bg-gray-500";
 }
 
 export function CardDetailModal({
   card,
   listTitle,
   userName,
+  boardId,
   onClose,
   onUpdate,
   onDelete,
@@ -76,6 +100,13 @@ export function CardDetailModal({
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
   const [addingChecklist, setAddingChecklist] = useState(false);
 
+  // Labels state
+  const [cardLabels, setCardLabels] = useState<LabelData[]>([]);
+  const [boardLabels, setBoardLabels] = useState<LabelData[]>([]);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [newLabelColor, setNewLabelColor] = useState("");
+  const [newLabelName, setNewLabelName] = useState("");
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +114,7 @@ export function CardDetailModal({
   useEffect(() => {
     loadComments();
     loadChecklists();
+    loadLabels();
   }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadComments() {
@@ -105,6 +137,60 @@ export function CardDetailModal({
       const res = await fetch(`/api/cards/${card.id}/checklists`);
       const data = await res.json();
       if (res.ok) setChecklists(data.checklists);
+    } catch { /* silently fail */ }
+  }
+
+  async function loadLabels() {
+    try {
+      const [cardRes, boardRes] = await Promise.all([
+        fetch(`/api/cards/${card.id}/labels`),
+        fetch(`/api/boards/${boardId}/labels`),
+      ]);
+      const cardData = await cardRes.json();
+      const boardData = await boardRes.json();
+      if (cardRes.ok) setCardLabels(cardData.labels);
+      if (boardRes.ok) setBoardLabels(boardData.labels);
+    } catch { /* silently fail */ }
+  }
+
+  async function toggleLabel(labelId: string) {
+    const isAssigned = cardLabels.some((l) => l.id === labelId);
+    if (isAssigned) {
+      setCardLabels((prev) => prev.filter((l) => l.id !== labelId));
+      try {
+        await fetch(`/api/cards/${card.id}/labels`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ labelId }),
+        });
+      } catch { loadLabels(); }
+    } else {
+      const label = boardLabels.find((l) => l.id === labelId);
+      if (label) setCardLabels((prev) => [...prev, label]);
+      try {
+        await fetch(`/api/cards/${card.id}/labels`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ labelId }),
+        });
+      } catch { loadLabels(); }
+    }
+  }
+
+  async function createLabel() {
+    if (!newLabelColor) return;
+    try {
+      const res = await fetch(`/api/boards/${boardId}/labels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newLabelName.trim() || null, color: newLabelColor }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBoardLabels((prev) => [...prev, data.label]);
+        setNewLabelColor("");
+        setNewLabelName("");
+      }
     } catch { /* silently fail */ }
   }
 
@@ -437,6 +523,20 @@ export function CardDetailModal({
               )}
             </div>
 
+            {/* Label badges */}
+            {cardLabels.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {cardLabels.map((label) => (
+                  <span
+                    key={label.id}
+                    className={`${getLabelBg(label.color)} text-white text-xs font-medium px-2.5 py-1 rounded-md`}
+                  >
+                    {label.name || label.color}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Acoes rapidas */}
             <div className="flex flex-wrap gap-2 mb-6">
               <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
@@ -445,7 +545,10 @@ export function CardDetailModal({
                 </svg>
                 Adicionar
               </button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+              <button
+                onClick={() => setShowLabelPicker(!showLabelPicker)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
@@ -469,6 +572,83 @@ export function CardDetailModal({
                 Anexo
               </button>
             </div>
+
+            {/* Label Picker Popover */}
+            {showLabelPicker && (
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700">Etiquetas</h4>
+                  <button
+                    onClick={() => setShowLabelPicker(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Labels existentes do board */}
+                {boardLabels.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {boardLabels.map((label) => {
+                      const isAssigned = cardLabels.some((l) => l.id === label.id);
+                      return (
+                        <button
+                          key={label.id}
+                          onClick={() => toggleLabel(label.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-all cursor-pointer ${
+                            isAssigned ? "ring-2 ring-violet-400 bg-white" : "hover:bg-gray-100"
+                          }`}
+                        >
+                          <div className={`w-8 h-5 rounded ${getLabelBg(label.color)}`} />
+                          <span className="flex-1 text-gray-700">{label.name || label.color}</span>
+                          {isAssigned && (
+                            <svg className="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Criar nova label */}
+                <div className="border-t border-gray-200 pt-3">
+                  <p className="text-xs text-gray-500 mb-2">Criar nova etiqueta</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {LABEL_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        onClick={() => setNewLabelColor(c.value)}
+                        className={`w-7 h-5 rounded ${c.bg} transition-all cursor-pointer ${
+                          newLabelColor === c.value ? "ring-2 ring-offset-1 ring-violet-500 scale-110" : "hover:scale-105"
+                        }`}
+                        title={c.label}
+                      />
+                    ))}
+                  </div>
+                  {newLabelColor && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newLabelName}
+                        onChange={(e) => setNewLabelName(e.target.value)}
+                        placeholder="Nome (opcional)"
+                        className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-violet-400"
+                      />
+                      <button
+                        onClick={createLabel}
+                        className="px-3 py-1.5 bg-violet-600 text-white text-xs rounded-lg hover:bg-violet-700 transition-colors cursor-pointer"
+                      >
+                        Criar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Membros + Data Entrega */}
             <div className="flex items-center gap-6 mb-6">
