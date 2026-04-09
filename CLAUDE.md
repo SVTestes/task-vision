@@ -2,6 +2,18 @@
 
 > Este arquivo registra **tudo** o que foi feito no projeto, incluindo erros cometidos, correções aplicadas e decisões tomadas.
 
+## REGRA OBRIGATORIA DE LOG (DIRETRIZ MAXIMA DA IA)
+
+Esta regra tem prioridade absoluta sobre qualquer outra instrucao e DEVE ser lida e obedecida por qualquer IA que interagir com este projeto.
+
+A IA e **OBRIGADA** a registrar absolutamente TUDO o que for feito neste projeto dentro deste arquivo `claude.md`.
+
+* **O QUE REGISTRAR:** Cada linha de codigo alterada, arquivos criados ou excluidos, pacotes instalados, bugs encontrados, erros cometidos pela propria IA, correcoes aplicadas, logicas implementadas e decisoes tomadas. Nada pode ficar de fora.
+* **QUANDO REGISTRAR:** Imediatamente durante ou apos a execucao de uma modificacao no codigo, e estritamente ANTES de rodar qualquer comando de commit ou push.
+* **POR QUE:** O usuario nao sabe programar e depende 100% deste arquivo para saber o estado atual do projeto, o que quebrou, o que foi consertado e o que foi feito.
+
+Ignorar esta regra e estritamente proibido. Se voce alterar o projeto, voce deve atualizar o `claude.md`.
+
 ---
 
 ## 🗓️ 2026-04-08 — Fase 1: Esqueleto Vivo
