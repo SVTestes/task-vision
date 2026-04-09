@@ -682,3 +682,58 @@ O usuario nao sabe programar e depende da IA para verificar se as mudancas estao
 | # | Erro | Causa | Correcao |
 |---|------|-------|----------|
 | 9 | PowerShell recusa `&&` no git commit | Sintaxe PS vs Bash | Rodei git add e git commit separados |
+
+---
+
+## Fase 5 — CardDetailModal Funcional (Etapas 1-4)
+**Data:** 2026-04-09  
+**Sessao:** Implementacao completa das acoes do CardDetailModal
+
+### O que foi feito
+
+#### Schema Prisma Expandido (7 novos models)
+- `Label` — etiquetas coloridas por board
+- `CardLabel` — pivot N:N card ↔ label
+- `Checklist` — listas de verificacao
+- `ChecklistItem` — itens individuais com status
+- `Attachment` — anexos (links)
+- `CardMember` — membros atribuidos ao card
+- `Comment` — comentarios com autor
+- `Activity` — historico de atividade (preparado)
+- Card ganhou: `dueDate`, `isDueCompleted`, `creatorId`
+- User ganhou relacoes: createdCards, cardMemberships, comments, activities, attachments
+- Board ganhou relacao: labels
+
+#### APIs Criadas
+| Rota | Metodos | Descricao |
+|------|---------|-----------|
+| `/api/cards/[id]/comments` | GET, POST | Comentarios do card |
+| `/api/cards/[id]/checklists` | GET, POST | Checklists do card |
+| `/api/checklists/[id]` | PATCH, DELETE | Editar/excluir checklist |
+| `/api/checklists/[id]/items` | POST | Criar item de checklist |
+| `/api/checklist-items/[id]` | PATCH, DELETE | Toggle/excluir item |
+| `/api/boards/[id]/labels` | GET, POST | Labels do board |
+| `/api/cards/[id]/labels` | GET, POST, DELETE | Atribuir/remover labels |
+| `/api/cards/[id]/members` | GET, POST, DELETE | Membros do card |
+| `/api/cards/[id]/attachments` | GET, POST, DELETE | Anexos do card |
+| `PATCH /api/cards/[id]` | atualizado | Aceita dueDate e isDueCompleted |
+
+#### UI/UX Implementado
+- **DueDate picker**: datetime-local com salvar/remover/cancelar
+- **Toggle concluido**: checkbox que marca data como concluida (verde) ou em atraso (vermelho)
+- **Comentarios reais**: carrega do banco, posta novo com Enter, mostra autor/timestamp
+- **Checklists**: criar, deletar, adicionar items, toggle complete, progress bar animada
+- **Labels**: picker de cores (8 cores), criar label no board, toggle assign/unassign, badges coloridos
+- **KanbanCard**: badge colorido de DueDate no card face (verde/vermelho/amarelo)
+
+### Verificacao
+- `npx prisma db push` aplicado direto via URL publica do Railway
+- Build passa sem erros TypeScript
+- Testado em producao: DueDate salva, Comentario posta, modal abre corretamente
+- Screenshot confirma: data "15 de abr., 14:00" e comentario "Teste de comentario automatico" visiveis
+
+### Erros e Correcoes
+| # | Erro | Causa | Correcao |
+|---|------|-------|----------|
+| 10 | `prisma db push` no build falha | Railway build isola rede — nao acessa `postgres.railway.internal` | Removido do build script, aplicado via CLI com URL publica |
+| 11 | Type error: dueDate Date vs string | Server Component retorna Date, Client espera string | Serializado dueDate com `.toISOString()` na page.tsx |
