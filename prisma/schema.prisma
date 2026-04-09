@@ -36,6 +36,11 @@ model User {
   ownedWorkspaces  Workspace[]       @relation("WorkspaceOwner")
   workspaceMembers WorkspaceMember[]
   sentInvitations  Invitation[]      @relation("InvitationSender")
+  createdCards     Card[]            @relation("CardCreator")
+  cardMemberships  CardMember[]      @relation("CardMemberUser")
+  comments         Comment[]         @relation("CommentAuthor")
+  activities       Activity[]        @relation("ActivityUser")
+  attachments      Attachment[]      @relation("AttachmentCreator")
 }
 
 model Session {
@@ -104,6 +109,7 @@ model Board {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   lists     List[]
+  labels    Label[]
 
   @@index([workspaceId])
 }
@@ -123,18 +129,152 @@ model List {
 }
 
 model Card {
+  id             String    @id @default(cuid())
+  listId         String
+  title          String
+  description    String?   @db.Text
+  position       Float     @default(1000)
+  dueDate        DateTime?
+  isDueCompleted Boolean   @default(false)
+  creatorId      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  list        List           @relation(fields: [listId], references: [id], onDelete: Cascade)
+  creator     User?          @relation("CardCreator", fields: [creatorId], references: [id])
+  labels      CardLabel[]
+  checklists  Checklist[]
+  attachments Attachment[]
+  members     CardMember[]
+  comments    Comment[]
+  activities  Activity[]
+
+  @@index([listId])
+}
+
+// ─── Etiquetas ───────────────────────────────────────────
+
+model Label {
+  id        String   @id @default(cuid())
+  boardId   String
+  name      String?
+  color     String   // "red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards CardLabel[]
+
+  @@index([boardId])
+}
+
+model CardLabel {
+  id      String @id @default(cuid())
+  cardId  String
+  labelId String
+
+  card  Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, labelId])
+}
+
+// ─── Checklists ──────────────────────────────────────────
+
+model Checklist {
+  id        String   @id @default(cuid())
+  cardId    String
+  title     String   @default("Checklist")
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card  Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+
+  @@index([cardId])
+}
+
+model ChecklistItem {
   id          String   @id @default(cuid())
-  listId      String
+  checklistId String
   title       String
-  description String?  @db.Text
+  isCompleted Boolean  @default(false)
   position    Float    @default(1000)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
-  @@index([listId])
+  @@index([checklistId])
 }
+
+// ─── Anexos ──────────────────────────────────────────────
+
+model Attachment {
+  id        String   @id @default(cuid())
+  cardId    String
+  creatorId String?
+  name      String
+  url       String
+  type      String   @default("link") // "link" ou "file"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card    Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  creator User? @relation("AttachmentCreator", fields: [creatorId], references: [id])
+
+  @@index([cardId])
+}
+
+// ─── Membros do Card ─────────────────────────────────────
+
+model CardMember {
+  id        String   @id @default(cuid())
+  cardId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User @relation("CardMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+}
+
+// ─── Comentários ─────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(cuid())
+  cardId    String
+  userId    String
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User @relation("CommentAuthor", fields: [userId], references: [id])
+
+  @@index([cardId])
+}
+
+// ─── Histórico de Atividade ──────────────────────────────
+
+model Activity {
+  id        String   @id @default(cuid())
+  cardId    String
+  userId    String?
+  type      String   // "createCard", "moveCard", "addMember", "addLabel", etc.
+  data      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  card Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User? @relation("ActivityUser", fields: [userId], references: [id])
+
+  @@index([cardId])
+}
+
+// ─── Convites ────────────────────────────────────────────
 
 model Invitation {
   id          String   @id @default(cuid())

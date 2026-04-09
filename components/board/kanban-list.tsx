@@ -9,6 +9,9 @@ interface CardData {
   description: string | null;
   position: number;
   listId: string;
+  dueDate: string | null;
+  isDueCompleted: boolean;
+  creatorId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +67,8 @@ export function KanbanList({ title, cards, onCreateCard, onCardClick }: KanbanLi
             id={card.id}
             title={card.title}
             hasDescription={!!card.description}
+            dueDate={card.dueDate}
+            isDueCompleted={card.isDueCompleted}
             onClick={() => onCardClick(card)}
           />
         ))}

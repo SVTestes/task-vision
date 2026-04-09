@@ -2,12 +2,22 @@
 
 import { useState, useEffect, useRef } from "react";
 
+interface CommentData {
+  id: string;
+  text: string;
+  createdAt: string;
+  user: { id: string; name: string; email: string };
+}
+
 interface CardData {
   id: string;
   title: string;
   description: string | null;
   position: number;
   listId: string;
+  dueDate: string | null;
+  isDueCompleted: boolean;
+  creatorId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,8 +45,40 @@ export function CardDetailModal({
   const [editingDescription, setEditingDescription] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Due date state
+  const [dueDate, setDueDate] = useState(card.dueDate || "");
+  const [isDueCompleted, setIsDueCompleted] = useState(card.isDueCompleted || false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Comments state
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [postingComment, setPostingComment] = useState(false);
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Carrega comentarios ao abrir
+  useEffect(() => {
+    loadComments();
+  }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadComments() {
+    setLoadingComments(true);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/comments`);
+      const data = await res.json();
+      if (res.ok) {
+        setComments(data.comments);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingComments(false);
+    }
+  }
 
   // Fecha ao clicar no overlay
   function handleOverlayClick(e: React.MouseEvent) {
@@ -108,6 +150,66 @@ export function CardDetailModal({
     }
   }
 
+  async function saveDueDate(newDate: string | null) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate: newDate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDueDate(data.card.dueDate || "");
+        onUpdate(data.card);
+      }
+    } catch {
+      // revert
+    } finally {
+      setSaving(false);
+      setShowDatePicker(false);
+    }
+  }
+
+  async function toggleDueCompleted() {
+    const newVal = !isDueCompleted;
+    setIsDueCompleted(newVal);
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDueCompleted: newVal }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onUpdate(data.card);
+      }
+    } catch {
+      setIsDueCompleted(!newVal);
+    }
+  }
+
+  async function postComment() {
+    if (!commentText.trim() || postingComment) return;
+    setPostingComment(true);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: commentText.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setComments((prev) => [data.comment, ...prev]);
+        setCommentText("");
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setPostingComment(false);
+    }
+  }
+
   async function handleDelete() {
     if (!confirm("Tem certeza que deseja excluir este cartao?")) return;
     try {
@@ -136,17 +238,19 @@ export function CardDetailModal({
     return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
   }
 
-  // Data formatada para exibição
-  const createdDate = new Date(card.createdAt);
-  const formattedDate = createdDate.toLocaleDateString("pt-BR", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // Due date helpers
+  const hasDueDate = !!dueDate;
+  const dueDateObj = hasDueDate ? new Date(dueDate) : null;
+  const isOverdue = hasDueDate && !isDueCompleted && dueDateObj && dueDateObj < new Date();
+  const formattedDueDate = dueDateObj
+    ? dueDateObj.toLocaleDateString("pt-BR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "";
 
-  // Verifica se card está "em atraso" (criado ha mais de 24h — placeholder para dueDate futuro)
-  const isOverdue = (new Date().getTime() - createdDate.getTime()) > 86400000;
+  // Data de criacao formatada
+  const createdDate = new Date(card.createdAt);
+  const formattedCreated = createdDate.toLocaleDateString("pt-BR", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
 
   // Iniciais do usuario
   const userInitials = userName
@@ -156,6 +260,9 @@ export function CardDetailModal({
     .toUpperCase()
     .slice(0, 2);
 
+  // Input date value (YYYY-MM-DDTHH:mm)
+  const dateInputValue = dueDate ? new Date(dueDate).toISOString().slice(0, 16) : "";
+
   return (
     <div
       ref={overlayRef}
@@ -163,7 +270,7 @@ export function CardDetailModal({
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-12 overflow-y-auto"
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-[768px] mx-4 mb-8 animate-in fade-in zoom-in-95 duration-150">
-        {/* Barra de topo — Nome da lista + acoes + fechar */}
+        {/* Barra de topo */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
@@ -171,28 +278,11 @@ export function CardDetailModal({
             </span>
           </div>
           <div className="flex items-center gap-1">
-            {/* Botao cover image (placeholder) */}
             <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Imagem de capa">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
               </svg>
             </button>
-            {/* Botao watch (placeholder) */}
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Acompanhar">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
-            </button>
-            {/* Botao more options */}
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Mais opcoes">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="5" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="12" cy="19" r="1.5" />
-              </svg>
-            </button>
-            {/* Fechar */}
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
@@ -210,7 +300,6 @@ export function CardDetailModal({
           <div className="flex-1 p-6">
             {/* Titulo */}
             <div className="flex items-start gap-3 mb-6">
-              {/* Icone circulo (status placeholder) */}
               <div className="mt-1 w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
               {editingTitle ? (
                 <input
@@ -267,7 +356,7 @@ export function CardDetailModal({
               </button>
             </div>
 
-            {/* Membros + Data */}
+            {/* Membros + Data Entrega */}
             <div className="flex items-center gap-6 mb-6">
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-1.5">Membros</p>
@@ -285,13 +374,88 @@ export function CardDetailModal({
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-1.5">Data Entrega</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">{formattedDate}</span>
-                  {isOverdue && (
-                    <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
-                      Em Atraso
-                    </span>
+                  {hasDueDate ? (
+                    <>
+                      <button
+                        onClick={toggleDueCompleted}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${
+                          isDueCompleted
+                            ? "bg-green-500 border-green-500 text-white"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        {isDueCompleted && (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        className={`text-sm px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                          isDueCompleted
+                            ? "text-green-700 bg-green-100"
+                            : isOverdue
+                            ? "text-red-700 bg-red-100"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        {formattedDueDate}
+                      </button>
+                      {isDueCompleted && (
+                        <span className="text-xs font-medium text-white bg-green-500 px-1.5 py-0.5 rounded">
+                          Concluido
+                        </span>
+                      )}
+                      {isOverdue && (
+                        <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
+                          Em Atraso
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setShowDatePicker(true)}
+                      className="text-sm text-gray-500 px-2 py-1 border border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+                    >
+                      Definir data
+                    </button>
                   )}
                 </div>
+                {/* Date picker inline */}
+                {showDatePicker && (
+                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                    <input
+                      type="datetime-local"
+                      value={dateInputValue}
+                      onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value).toISOString() : "")}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => saveDueDate(dueDate || null)}
+                        disabled={saving}
+                        className="px-3 py-1.5 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {saving ? "..." : "Salvar"}
+                      </button>
+                      {hasDueDate && (
+                        <button
+                          onClick={() => saveDueDate(null)}
+                          className="px-3 py-1.5 text-red-600 text-sm border border-red-200 rounded-lg hover:bg-red-50 cursor-pointer transition-colors"
+                        >
+                          Remover
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowDatePicker(false)}
+                        className="px-3 py-1.5 text-gray-500 text-sm hover:text-gray-700 cursor-pointer transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -362,15 +526,58 @@ export function CardDetailModal({
 
             {/* Campo de comentario */}
             <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Escrever um comentario..."
-                className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100 transition-all placeholder:text-gray-400"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && commentText.trim()) postComment();
+                  }}
+                  placeholder="Escrever um comentario..."
+                  className="flex-1 px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100 transition-all placeholder:text-gray-400"
+                />
+                {commentText.trim() && (
+                  <button
+                    onClick={postComment}
+                    disabled={postingComment}
+                    className="px-3 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {postingComment ? "..." : "Enviar"}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Atividade recente */}
+            {/* Comentarios e atividades */}
             <div className="space-y-4">
+              {/* Comentarios reais do banco */}
+              {loadingComments && (
+                <p className="text-xs text-gray-400">Carregando...</p>
+              )}
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
+                    {comment.user.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-700">{comment.user.name}</p>
+                    <div className="mt-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-700 break-words">
+                      {comment.text}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {formatRelativeDate(comment.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Atividade intrinseca: card criado */}
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
                   {userInitials}
@@ -392,7 +599,7 @@ export function CardDetailModal({
               <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Criado em</span>
-                  <span className="text-gray-700">{formattedDate}</span>
+                  <span className="text-gray-700">{formattedCreated}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Ultima atualizacao</span>
@@ -402,6 +609,14 @@ export function CardDetailModal({
                   <span className="text-gray-500">Lista</span>
                   <span className="text-gray-700">{listTitle}</span>
                 </div>
+                {hasDueDate && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Data entrega</span>
+                    <span className={isDueCompleted ? "text-green-600" : isOverdue ? "text-red-600" : "text-gray-700"}>
+                      {formattedDueDate}
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2">
                   <button
                     onClick={handleDelete}

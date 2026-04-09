@@ -61,6 +61,7 @@ export default async function BoardPage({
       updatedAt: list.updatedAt.toISOString(),
       cards: list.cards.map((card) => ({
         ...card,
+        dueDate: card.dueDate ? card.dueDate.toISOString() : null,
         createdAt: card.createdAt.toISOString(),
         updatedAt: card.updatedAt.toISOString(),
       })),

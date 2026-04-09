@@ -12,6 +12,9 @@ interface CardData {
   description: string | null;
   position: number;
   listId: string;
+  dueDate: string | null;
+  isDueCompleted: boolean;
+  creatorId: string | null;
   createdAt: string;
   updatedAt: string;
 }

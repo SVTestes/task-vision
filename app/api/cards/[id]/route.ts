@@ -60,7 +60,7 @@ export async function PATCH(
     const user = await requireUser();
     const { id } = await params;
     const body = await request.json();
-    const { title, description, listId, position } = body;
+    const { title, description, listId, position, dueDate, isDueCompleted } = body;
 
     const card = await prisma.card.findUnique({
       where: { id },
@@ -99,6 +99,8 @@ export async function PATCH(
     if (description !== undefined) updateData.description = description;
     if (listId !== undefined) updateData.listId = listId;
     if (position !== undefined) updateData.position = position;
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (isDueCompleted !== undefined) updateData.isDueCompleted = isDueCompleted;
 
     const updated = await prisma.card.update({
       where: { id },
