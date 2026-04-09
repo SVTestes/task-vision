@@ -416,6 +416,47 @@ taskvision/
 
 ---
 
+## 2026-04-09 — Fase 3, Etapa 2: Interface Visual do Board (Kanban Trello-like)
+
+### Status anterior
+- Fase 3, Etapa 1 (workspaces) concluida — criacao, listagem, API CRUD, cards com gradiente
+- Pagina de detalhe do workspace criada em `app/(dashboard)/workspaces/[id]/page.tsx`
+
+### Referencia
+- Interface inspirada no Trello classico: listas horizontais, cards empilhados, fundo com gradiente
+- Layout fullscreen sem scroll vertical — apenas scroll horizontal entre listas
+- Dados mockados (falsos) para testar a UI antes de plugar no banco
+
+### Plano desta Etapa
+| Passo | Descricao | Status |
+|-------|-----------|--------|
+| 1 | Criar layout especial para boards (fullscreen) | Feito |
+| 2 | Criar componente BoardHeader | Feito |
+| 3 | Criar componente KanbanCard | Feito |
+| 4 | Criar componente KanbanList | Feito |
+| 5 | Criar pagina do board com mock data | Feito |
+| 6 | Build + lint + commit + push | Feito |
+
+### Arquivos Criados
+- `app/(dashboard)/boards/layout.tsx` — layout fullscreen: h-[calc(100vh-4rem)] abaixo da nav
+- `app/(dashboard)/boards/[id]/page.tsx` — pagina do board com mock data (3 listas, 9 cards)
+- `components/board/board-header.tsx` — barra com breadcrumb (workspace > board), fundo translucido
+- `components/board/kanban-list.tsx` — coluna com titulo, area de cards scrollavel, botao adicionar card
+- `components/board/kanban-card.tsx` — card branco com sombra, hover cinza, titulo em texto escuro
+
+### Decisoes Tecnicas
+- Layout do board usa `h-[calc(100vh-4rem)]` para ocupar toda a tela menos a nav (64px)
+- Fundo gradiente `from-purple-600 via-violet-500 to-pink-400` (inspirado na screenshot do Trello)
+- Board header com `bg-black/20 backdrop-blur-sm` para efeito translucido
+- Listas com `w-72 shrink-0` para largura fixa e `max-h-full` com scroll interno
+- Area kanban usa `overflow-x-auto overflow-y-hidden` para scroll horizontal
+- Cards usam `bg-white rounded-lg shadow-sm` com `hover:bg-gray-50`
+- Botao "Adicionar outra lista" com `bg-white/20 hover:bg-white/30` (fantasma)
+- Dados mockados: 3 listas ("Hoje", "Esta semana", "Mais tarde") com 9 cards totais
+- Nenhuma interacao de drag-and-drop nesta etapa (apenas visual)
+
+---
+
 ## Fluxo de Deploy - REGRA OBRIGATORIA
 
 Esta regra deve ser seguida sem excecoes em todas as interacoes com este projeto.
