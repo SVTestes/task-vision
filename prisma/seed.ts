@@ -20,17 +20,16 @@ async function main() {
     return;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-
-  if (existing) {
-    console.log(`✅ Admin "${email}" já existe. Nada a fazer.`);
-    return;
-  }
-
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      password: hashedPassword,
+      name,
+      role: "ADMIN",
+    },
+    create: {
       email,
       password: hashedPassword,
       name,
@@ -38,7 +37,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Admin "${email}" criado com sucesso!`);
+  console.log(`✅ Admin "${email}" criado/atualizado com sucesso!`);
 }
 
 main().catch((err) => {
