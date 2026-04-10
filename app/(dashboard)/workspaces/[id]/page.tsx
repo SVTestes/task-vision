@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { getGradientByName } from "@/lib/workspace-gradients";
 import Link from "next/link";
 import { CreateBoardModal } from "@/components/create-board-modal";
+import { WorkspaceMembers } from "@/components/workspace-members";
 
 export default async function WorkspacePage({
   params,
@@ -63,6 +64,13 @@ export default async function WorkspacePage({
   const gradient = workspace.backgroundGradient
     ? getGradientByName(workspace.backgroundGradient)
     : getGradientByName("ocean-dive");
+
+  // Serializa membros para o client component
+  const serializedMembers = workspace.members.map((m) => ({
+    id: m.id,
+    role: m.role,
+    user: m.user,
+  }));
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
@@ -209,30 +217,13 @@ export default async function WorkspacePage({
         )}
       </div>
 
-      {/* Secao de Membros */}
-      <div>
-        <h2 className="text-xl font-semibold text-white mb-4">Membros</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {workspace.members.map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
-            >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-medium text-white shrink-0">
-                {member.user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {member.user.name}
-                </p>
-                <p className="text-xs text-slate-400 truncate">
-                  {member.role === "OWNER" ? "Dono" : member.role === "ADMIN" ? "Admin" : "Membro"}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Secao de Membros — Client Component */}
+      <WorkspaceMembers
+        workspaceId={id}
+        members={serializedMembers}
+        ownerId={workspace.ownerId}
+      />
     </div>
   );
 }
+
