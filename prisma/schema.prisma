@@ -20,6 +20,14 @@ enum UserRole {
   MEMBER
 }
 
+enum NotificationType {
+  COMMENT_ADDED    // Alguém comentou num card onde o user é membro
+  MEMBER_ADDED     // O user foi adicionado como membro de um card
+  DUE_DATE_SOON    // Card com due date vencendo em 24h
+  DUE_DATE_OVERDUE // Card com due date vencido
+  CARD_MOVED       // Card onde o user é membro foi movido de lista
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -41,6 +49,8 @@ model User {
   comments         Comment[]         @relation("CommentAuthor")
   activities       Activity[]        @relation("ActivityUser")
   attachments      Attachment[]      @relation("AttachmentCreator")
+  receivedNotifications Notification[] @relation("NotificationReceiver")
+  createdNotifications  Notification[] @relation("NotificationCreator")
 }
 
 model Session {
@@ -107,9 +117,10 @@ model Board {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  lists     List[]
-  labels    Label[]
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lists         List[]
+  labels        Label[]
+  notifications Notification[]
 
   @@index([workspaceId])
 }
@@ -140,14 +151,15 @@ model Card {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  list        List           @relation(fields: [listId], references: [id], onDelete: Cascade)
-  creator     User?          @relation("CardCreator", fields: [creatorId], references: [id])
-  labels      CardLabel[]
-  checklists  Checklist[]
-  attachments Attachment[]
-  members     CardMember[]
-  comments    Comment[]
-  activities  Activity[]
+  list          List           @relation(fields: [listId], references: [id], onDelete: Cascade)
+  creator       User?          @relation("CardCreator", fields: [creatorId], references: [id])
+  labels        CardLabel[]
+  checklists    Checklist[]
+  attachments   Attachment[]
+  members       CardMember[]
+  comments      Comment[]
+  activities    Activity[]
+  notifications Notification[]
 
   @@index([listId])
 }
@@ -252,8 +264,9 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user User @relation("CommentAuthor", fields: [userId], references: [id])
+  card          Card           @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user          User           @relation("CommentAuthor", fields: [userId], references: [id])
+  notifications Notification[]
 
   @@index([cardId])
 }
@@ -290,4 +303,30 @@ model Invitation {
 
   @@index([workspaceId])
   @@index([email])
+}
+
+// ─── Notificações ────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           // Quem recebe a notificação
+  creatorId String?          // Quem causou a ação (null = sistema)
+  cardId    String           // Card relacionado
+  boardId   String           // Board (desnormalizado para query rápida)
+  commentId String?          // Comentário relacionado (se aplicável)
+  type      NotificationType
+  data      Json             @default("{}")
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user    User     @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  creator User?    @relation("NotificationCreator", fields: [creatorId], references: [id])
+  card    Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([cardId])
 }

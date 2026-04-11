@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/get-current-user";
+import { notifyCardMembers } from "@/lib/notifications/create-notification";
 
 // GET /api/cards/[id]/comments — listar comentarios do card
 export async function GET(
@@ -77,7 +78,7 @@ export async function POST(
       include: {
         list: {
           include: {
-            board: { select: { workspaceId: true } },
+            board: { select: { id: true, workspaceId: true } },
           },
         },
       },
@@ -110,6 +111,16 @@ export async function POST(
       include: {
         user: { select: { id: true, name: true, email: true } },
       },
+    });
+
+    // Dispara notificação para membros do card
+    notifyCardMembers({
+      excludeUserId: user.id,
+      cardId: id,
+      boardId: card.list.board.id,
+      type: "COMMENT_ADDED",
+      data: { cardTitle: card.title, commentText: text.trim().substring(0, 100) },
+      commentId: comment.id,
     });
 
     return NextResponse.json({ comment }, { status: 201 });

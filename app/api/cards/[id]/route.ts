@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/get-current-user";
+import { notifyCardMembers } from "@/lib/notifications/create-notification";
 
 // GET /api/cards/[id] — buscar detalhes do card
 export async function GET(
@@ -66,11 +67,7 @@ export async function PATCH(
       where: { id },
       include: {
         list: {
-          include: {
-            board: {
-              select: { workspaceId: true },
-            },
-          },
+          select: { id: true, title: true, board: { select: { id: true, workspaceId: true } } },
         },
       },
     });
@@ -106,6 +103,36 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+
+    // Notificação: card movido de lista
+    if (listId !== undefined && listId !== card.listId) {
+      const newList = await prisma.list.findUnique({ where: { id: listId }, select: { title: true } });
+      notifyCardMembers({
+        excludeUserId: user.id,
+        cardId: id,
+        boardId: card.list.board.id,
+        type: "CARD_MOVED",
+        data: {
+          cardTitle: card.title,
+          fromList: card.list.title,
+          toList: newList?.title || "Lista desconhecida",
+        },
+      });
+    }
+
+    // Notificação: due date definido/alterado
+    if (dueDate !== undefined && dueDate !== null) {
+      notifyCardMembers({
+        excludeUserId: user.id,
+        cardId: id,
+        boardId: card.list.board.id,
+        type: "DUE_DATE_SOON",
+        data: {
+          cardTitle: card.title,
+          dueDate: new Date(dueDate).toISOString(),
+        },
+      });
+    }
 
     return NextResponse.json({ card: updated });
   } catch (err) {

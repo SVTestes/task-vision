@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/get-current-user";
+import { createNotification } from "@/lib/notifications/create-notification";
 
 // GET /api/cards/[id]/members — listar membros do card
 export async function GET(
@@ -48,7 +49,7 @@ export async function POST(
 
     const card = await prisma.card.findUnique({
       where: { id },
-      include: { list: { include: { board: { select: { workspaceId: true } } } } },
+      include: { list: { include: { board: { select: { id: true, workspaceId: true } } } } },
     });
     if (!card) return NextResponse.json({ error: "Card nao encontrado" }, { status: 404 });
 
@@ -73,6 +74,16 @@ export async function POST(
     const addedUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true },
+    });
+
+    // Dispara notificação MEMBER_ADDED para o usuário adicionado
+    createNotification({
+      userId,
+      creatorId: user.id,
+      cardId: id,
+      boardId: card.list.board.id,
+      type: "MEMBER_ADDED",
+      data: { cardTitle: card.title, addedBy: user.name },
     });
 
     return NextResponse.json({ member: addedUser }, { status: 201 });

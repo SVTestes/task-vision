@@ -737,3 +737,116 @@ O usuario nao sabe programar e depende da IA para verificar se as mudancas estao
 |---|------|-------|----------|
 | 10 | `prisma db push` no build falha | Railway build isola rede — nao acessa `postgres.railway.internal` | Removido do build script, aplicado via CLI com URL publica |
 | 11 | Type error: dueDate Date vs string | Server Component retorna Date, Client espera string | Serializado dueDate com `.toISOString()` na page.tsx |
+
+---
+
+## 2026-04-11 — Fase 6: Sistema de Notificacoes
+
+### Referencia
+- Estudamos o Planka original ([plankanban/planka](https://github.com/plankanban/planka)) — modelos `Notification.js`, `Action.js`, `CardSubscription.js`, `NotificationService.js`
+- Planka tem 4 tipos de notificacao interna: moveCard, commentCard, addMemberToCard, mentionInComment
+- Planka NAO tem notificacoes de due date (feature request aberto)
+- Task Vision implementa 5 tipos incluindo DUE_DATE_SOON e DUE_DATE_OVERDUE como diferencial
+- Traduzimos a logica de Sails.js/Waterline para Next.js 16 + Prisma 7 + PostgreSQL
+
+### Plano de Execucao
+| Passo | Descricao | Status |
+|-------|-----------|--------|
+| 1 | Atualizar schema Prisma (enum + model Notification + relacoes) | Feito |
+| 2 | Aplicar schema no banco de producao Railway | Feito |
+| 3 | Criar helper centralizado de notificacoes | Feito |
+| 4 | Criar APIs de notificacao (GET, PATCH, count) | Feito |
+| 5 | Modificar APIs existentes para disparar notificacoes | Feito |
+| 6 | Criar componente NotificationBell | Feito |
+| 7 | Integrar sino no dashboard-nav | Feito |
+| 8 | Build + lint + commit + push | Feito |
+| 9 | Teste visual em producao | Feito |
+
+### Mudancas no Schema Prisma
+
+#### Novo enum: `NotificationType`
+- `COMMENT_ADDED` — alguem comentou num card onde o user e membro
+- `MEMBER_ADDED` — user foi adicionado como membro de um card
+- `DUE_DATE_SOON` — card com due date proximo (24h ou menos)
+- `DUE_DATE_OVERDUE` — card com due date vencido
+- `CARD_MOVED` — card foi movido de lista
+
+#### Novo model: `Notification`
+- `id` (cuid), `userId`, `creatorId?`, `cardId`, `boardId`, `commentId?`
+- `type` (NotificationType), `data` (Json), `isRead` (Boolean, default false)
+- `createdAt`, `updatedAt`
+- Relacoes: user (receiver), creator, card, board, comment
+- Indices: [userId, isRead], [userId, createdAt], [cardId]
+- onDelete Cascade em user, card, board, comment
+
+#### Relacoes adicionadas aos models existentes
+- `User`: receivedNotifications, createdNotifications
+- `Card`: notifications
+- `Board`: notifications
+- `Comment`: notifications
+
+### Schema aplicado no banco
+- Comando: `prisma db push` via URL publica do Railway (ballast.proxy.rlwy.net)
+- Para obter URL publica: `railway service Postgres` → `railway variables --json` → `DATABASE_PUBLIC_URL`
+- Resultado: schema sincronizado em 6.33s
+
+### Arquivos Criados (5 novos)
+- `lib/notifications/create-notification.ts` — helper centralizado com 2 funcoes:
+  - `createNotification()` — cria 1 notificacao (ex: membro adicionado)
+  - `notifyCardMembers()` — cria notificacoes em batch para todos os membros do card (ex: comentario)
+  - Ambas ignoram silenciosamente o autor da acao (nunca se auto-notifica)
+  - Ambas capturam erros silenciosamente (notificacao nunca quebra a acao principal)
+
+- `app/api/notifications/route.ts` — API de notificacoes:
+  - GET: listar notificacoes do user logado (paginacao cursor-based, filtro unreadOnly, limit)
+  - PATCH: marcar como lida(s) — aceita `ids: [...]` ou `markAllRead: true`
+
+- `app/api/notifications/count/route.ts` — GET contar nao-lidas (para badge do sino)
+
+- `components/notification-bell.tsx` — componente do sino:
+  - Polling a cada 30s via setInterval + fetch /api/notifications/count
+  - Badge vermelho com contagem (max "99+")
+  - Dropdown (DropdownMenu shadcn) com lista scrollavel (max 400px)
+  - Icones por tipo: 💬 comentario, 👤 membro, 📅 due date, 🔄 movido
+  - Texto descritivo com nome do criador + titulo do card
+  - Notificacao nao-lida: bg-indigo-500/10 + borda esquerda indigo + bolinha azul
+  - Notificacao lida: fundo transparente
+  - Clicar: marca como lida + navega para o board
+  - Botao "Marcar todas como lidas" no header
+  - Empty state: "Nenhuma notificacao 🎉"
+
+### Arquivos Modificados (4 arquivos)
+
+#### `app/api/cards/[id]/comments/route.ts`
+- Adicionado import de `notifyCardMembers`
+- Apos criar comentario: dispara `COMMENT_ADDED` para membros do card (exceto autor)
+- Board select ajustado para incluir `id: true` (necessario para boardId na notificacao)
+
+#### `app/api/cards/[id]/members/route.ts`
+- Adicionado import de `createNotification`
+- Apos adicionar membro: dispara `MEMBER_ADDED` para o user adicionado
+- Board select ajustado para incluir `id: true`
+
+#### `app/api/cards/[id]/route.ts` (PATCH)
+- Adicionado import de `notifyCardMembers`
+- Quando `listId` muda: dispara `CARD_MOVED` com fromList/toList
+- Quando `dueDate` e definido/alterado: dispara `DUE_DATE_SOON`
+- List query ajustada para select com `id`, `title`, `board.id`, `board.workspaceId`
+
+#### `components/dashboard-nav.tsx`
+- Adicionado import de `NotificationBell`
+- Sino inserido entre link admin e avatar do usuario
+
+### Decisoes Tecnicas
+- **Polling (30s)**: setInterval no client, sem WebSocket/SSE nesta fase
+- **Notificacoes fire-and-forget**: chamadas sem `await` nas APIs (nao bloqueia resposta)
+- **Self-notification prevention**: helper nunca notifica o autor da acao
+- **Cascade deletes**: deletar card/board/user remove notificacoes automaticamente
+- **Desnormalizacao**: boardId salvo direto na notificacao para queries rapidas (sem joins)
+- **Due date**: notificacao criada apenas no momento da definicao/alteracao (sem cron)
+
+### Erros e Correcoes
+| # | Erro | Causa | Correcao |
+|---|------|-------|----------|
+| 12 | `prisma db push` falha localmente | URL local (localhost:51213) aponta para proxy Prisma Accelerate nao rodando | Obtido URL publica do Railway via `railway variables --json` no servico Postgres |
+| 13 | Type error: `Record<string, unknown>` incompativel com Json do Prisma 7 | Prisma 7 usa `runtime.InputJsonValue` mais restritivo | Tipado como `Record<string, string>` + cast `as object` no prisma.create |

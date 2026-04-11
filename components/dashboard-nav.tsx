@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "@/components/notification-bell";
 import type { SafeUser } from "@/lib/auth/get-current-user";
 
 export function DashboardNav({ user }: { user: SafeUser }) {
@@ -66,6 +67,9 @@ export function DashboardNav({ user }: { user: SafeUser }) {
               Gerenciar Usuarios
             </Link>
           )}
+
+          {/* Notification bell */}
+          <NotificationBell />
 
           {/* User menu */}
           <DropdownMenu>
