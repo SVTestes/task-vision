@@ -41,7 +41,7 @@ export default async function WorkspacePage({
         },
       },
       owner: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, image: true },
       },
       _count: {
         select: { boards: true, members: true },

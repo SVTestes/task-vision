@@ -32,7 +32,7 @@ export async function POST(
     // Busca o usuario pelo email
     const targetUser = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, name: true, email: true, isDeactivated: true },
+      select: { id: true, name: true, email: true, image: true, isDeactivated: true },
     });
 
     if (!targetUser) {
@@ -61,7 +61,7 @@ export async function POST(
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, image: true },
         },
       },
     });
