@@ -5,8 +5,10 @@ import { BoardClient } from "@/components/board/board-client";
 
 export default async function BoardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ cardId?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -14,6 +16,7 @@ export default async function BoardPage({
   }
 
   const { id } = await params;
+  const { cardId } = await searchParams;
 
   const board = await prisma.board.findUnique({
     where: { id },
@@ -72,6 +75,7 @@ export default async function BoardPage({
     <BoardClient
       board={serializedBoard}
       userName={user.name}
+      initialCardId={cardId}
     />
   );
 }

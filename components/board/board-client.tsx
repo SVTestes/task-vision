@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BoardHeader } from "./board-header";
 import { KanbanList } from "./kanban-list";
@@ -45,9 +45,10 @@ interface BoardData {
 interface BoardClientProps {
   board: BoardData;
   userName: string;
+  initialCardId?: string;
 }
 
-export function BoardClient({ board, userName }: BoardClientProps) {
+export function BoardClient({ board, userName, initialCardId }: BoardClientProps) {
   const router = useRouter();
   const [lists, setLists] = useState<ListData[]>(board.lists);
   const [addingList, setAddingList] = useState(false);
@@ -57,6 +58,21 @@ export function BoardClient({ board, userName }: BoardClientProps) {
   // Card detail modal state
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
   const [selectedListTitle, setSelectedListTitle] = useState("");
+
+  // Deep-linking: Abre o card caso o ID esteja na URL
+  useEffect(() => {
+    if (initialCardId && lists.length > 0 && !selectedCard) {
+      for (const list of lists) {
+        const card = list.cards.find((c) => c.id === initialCardId);
+        if (card) {
+          setSelectedCard(card);
+          setSelectedListTitle(list.title);
+          break;
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCardId, lists]);
 
   async function handleCreateList() {
     if (!newListTitle.trim() || creatingList) return;
@@ -226,7 +242,10 @@ export function BoardClient({ board, userName }: BoardClientProps) {
           userName={userName}
           boardId={board.id}
           workspaceId={board.workspaceId}
-          onClose={() => setSelectedCard(null)}
+          onClose={() => {
+            setSelectedCard(null);
+            router.replace(`/boards/${board.id}`, { scroll: false });
+          }}
           onUpdate={handleCardUpdate}
           onDelete={handleCardDelete}
         />

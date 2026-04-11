@@ -158,7 +158,7 @@ export function NotificationBell() {
   };
 
   const handleNotificationClick = async (n: Notification) => {
-    // Marca como lida
+    // Marca como lida se ainda não estiver
     if (!n.isRead) {
       try {
         await fetch("/api/notifications", {
@@ -175,10 +175,11 @@ export function NotificationBell() {
       }
     }
 
-    // Navega para o board do card
+    // Navega para o board com suporte a deep-link do card correspondente
     if (n.board?.id) {
       setIsOpen(false);
-      router.push(`/boards/${n.board.id}`);
+      const cardIdParam = n.card?.id ? `?cardId=${n.card.id}` : "";
+      router.push(`/boards/${n.board.id}${cardIdParam}`);
     }
   };
 
