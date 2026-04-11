@@ -22,6 +22,7 @@ interface KanbanListProps {
   cards: CardData[];
   onCreateCard: (title: string) => void;
   onCardClick: (card: CardData) => void;
+  onUpdateTitle: (title: string) => void;
 }
 
 // Ícone: setas para dentro (colapsar)
@@ -54,9 +55,46 @@ function ExpandIcon() {
   );
 }
 
-export function KanbanList({ id, title, cards, onCreateCard, onCardClick }: KanbanListProps) {
+export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpdateTitle }: KanbanListProps) {
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
+  
+  // Title edition state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState(title);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  // Sync edit value if title prop changes externally
+  useEffect(() => {
+    setEditTitleValue(title);
+  }, [title]);
+
+  async function handleTitleSubmit() {
+    if (!editTitleValue.trim() || editTitleValue.trim() === title) {
+      setIsEditingTitle(false);
+      setEditTitleValue(title);
+      return;
+    }
+
+    setIsSavingTitle(true);
+    try {
+      const res = await fetch(`/api/lists/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitleValue.trim() })
+      });
+      if (res.ok) {
+        onUpdateTitle(editTitleValue.trim());
+      } else {
+        setEditTitleValue(title);
+      }
+    } catch {
+      setEditTitleValue(title);
+    } finally {
+      setIsSavingTitle(false);
+      setIsEditingTitle(false);
+    }
+  }
 
   // Estado de colapso — começa como null até ser lido do localStorage (evita hydration mismatch)
   const [isCollapsed, setIsCollapsed] = useState<boolean | null>(null);
@@ -129,11 +167,38 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick }: Kanb
   return (
     <div className="w-72 shrink-0 bg-slate-100 rounded-2xl flex flex-col max-h-full shadow-md transition-all duration-200">
       {/* Header da lista — fixo no topo */}
-      <div className="px-3 pt-3 pb-2 shrink-0">
-        <div className="flex items-center justify-between gap-1">
-          <h3 className="text-sm font-semibold text-slate-800 flex-1 truncate">{title}</h3>
+      <div className="px-3 pt-3 pb-2 shrink-0 group">
+        <div className="flex items-start justify-between gap-1">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={handleTitleSubmit}
+              disabled={isSavingTitle}
+              autoFocus
+              className="text-sm font-semibold text-slate-800 bg-white border border-violet-500 rounded px-1.5 py-0.5 outline-none flex-1 min-w-0"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleTitleSubmit();
+                }
+                if (e.key === "Escape") {
+                  setIsEditingTitle(false);
+                  setEditTitleValue(title);
+                }
+              }}
+            />
+          ) : (
+            <h3 
+              onClick={() => setIsEditingTitle(true)}
+              className="text-sm font-semibold text-slate-800 flex-1 min-h-[28px] flex items-center px-1.5 rounded cursor-pointer border border-transparent hover:bg-slate-200/50 break-words"
+            >
+              {title}
+            </h3>
+          )}
 
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0 pt-0.5">
             {/* Botão colapsar */}
             <button
               onClick={toggleCollapse}

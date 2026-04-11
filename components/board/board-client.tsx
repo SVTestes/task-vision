@@ -124,6 +124,14 @@ export function BoardClient({ board, userName, initialCardId }: BoardClientProps
     }
   }
 
+  function handleUpdateListTitle(listId: string, newTitle: string) {
+    setLists((prev) =>
+      prev.map((list) =>
+        list.id === listId ? { ...list, title: newTitle } : list
+      )
+    );
+  }
+
   function handleCardClick(card: CardData, listTitle: string) {
     setSelectedCard(card);
     setSelectedListTitle(listTitle);
@@ -168,6 +176,7 @@ export function BoardClient({ board, userName, initialCardId }: BoardClientProps
               cards={list.cards}
               onCreateCard={(title) => handleCreateCard(list.id, title)}
               onCardClick={(card) => handleCardClick(card, list.title)}
+              onUpdateTitle={(newTitle) => handleUpdateListTitle(list.id, newTitle)}
             />
           ))}
 
