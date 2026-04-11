@@ -138,7 +138,7 @@ export function BoardClient({ board, userName }: BoardClientProps) {
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-purple-600 via-violet-500 to-pink-400">
       {/* Board Header */}
-      <BoardHeader title={board.title} />
+      <BoardHeader title={board.title} boardId={board.id} />
 
       {/* Kanban Canvas — scroll horizontal */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">

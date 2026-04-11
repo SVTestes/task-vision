@@ -5,6 +5,7 @@ import { getGradientByName } from "@/lib/workspace-gradients";
 import Link from "next/link";
 import { CreateBoardModal } from "@/components/create-board-modal";
 import { WorkspaceMembers } from "@/components/workspace-members";
+import { WorkspaceHeader } from "@/components/workspace-header";
 
 export default async function WorkspacePage({
   params,
@@ -95,68 +96,16 @@ export default async function WorkspacePage({
         <span className="text-white font-medium">{workspace.name}</span>
       </div>
 
-      {/* Header do Workspace */}
-      <div className="relative rounded-2xl overflow-hidden mb-8">
-        {/* Fundo com gradiente */}
-        <div
-          className="absolute inset-0"
-          style={{ background: gradient.css }}
-        />
-        <div className="absolute inset-0 bg-black/30" />
-
-        {/* Conteudo */}
-        <div className="relative z-10 p-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {workspace.name}
-          </h1>
-          {workspace.description && (
-            <p className="text-white/70 text-sm max-w-2xl mb-4">
-              {workspace.description}
-            </p>
-          )}
-          <div className="flex items-center gap-4 text-sm text-white/60">
-            <span className="flex items-center gap-1.5">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
-                />
-              </svg>
-              {workspace._count.boards} board
-              {workspace._count.boards !== 1 ? "s" : ""}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                />
-              </svg>
-              {workspace._count.members} membro
-              {workspace._count.members !== 1 ? "s" : ""}
-            </span>
-            <span className="text-white/40">•</span>
-            <span>
-              Criado por{" "}
-              <span className="text-white/80">{workspace.owner.name}</span>
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Header do Workspace — Client Component editavel */}
+      <WorkspaceHeader
+        workspaceId={id}
+        name={workspace.name}
+        description={workspace.description}
+        gradient={gradient.css}
+        boardCount={workspace._count.boards}
+        memberCount={workspace._count.members}
+        ownerName={workspace.owner.name}
+      />
 
       {/* Secao de Boards */}
       <div className="mb-8">
