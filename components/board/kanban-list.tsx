@@ -125,40 +125,53 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
     return <div className="w-72 shrink-0" />;
   }
 
-  // ── Vista COLAPSADA ──────────────────────────────────────
+  // ── Vista COLAPSADA (Trello-like pill) ──────────────────
   if (isCollapsed) {
     return (
-      <div className="shrink-0 w-14 bg-slate-100 rounded-2xl shadow-md flex flex-col items-center py-3 gap-3 transition-all duration-200">
-        {/* Botão de expandir */}
+      <div
+        className="shrink-0 flex flex-col items-center rounded-[20px] shadow-md transition-all duration-300 overflow-hidden"
+        style={{
+          width: "3.25rem",      // 52px — mesma largura da imagem
+          minHeight: "12rem",
+          background: "rgba(241,245,249,0.92)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+      >
+        {/* Botão expandir — topo */}
         <button
           onClick={toggleCollapse}
           title="Expandir lista"
-          className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+          className="mt-3 mb-1 p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-violet-600 transition-colors cursor-pointer shrink-0"
         >
           <ExpandIcon />
         </button>
 
-        {/* Título vertical + contagem */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 min-h-0">
+        {/* Título vertical legível — de cima para baixo */}
+        <div className="flex-1 flex items-center justify-center w-full py-2 min-h-0">
           <span
-            className="text-xs font-semibold text-slate-700 select-none"
+            title={title}
+            className="text-[13px] font-semibold text-slate-700 leading-tight select-none"
             style={{
               writingMode: "vertical-rl",
               textOrientation: "mixed",
-              transform: "rotate(180deg)",
+              /* SEM rotate(180deg) → lê de cima ↓ para baixo */
               whiteSpace: "nowrap",
-              maxHeight: "180px",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              maxHeight: "200px",
             }}
           >
             {title}
           </span>
-          {/* Contagem de cartões */}
-          <span className="text-[11px] font-medium text-slate-400 bg-slate-200 rounded-full w-6 h-6 flex items-center justify-center">
-            {cards.length}
-          </span>
         </div>
+
+        {/* Badge de contagem — base */}
+        <span
+          className="mb-3 mt-1 shrink-0 min-w-[22px] h-[22px] px-1 bg-slate-200 text-slate-500 text-[11px] font-semibold rounded-full flex items-center justify-center"
+        >
+          {cards.length}
+        </span>
       </div>
     );
   }
