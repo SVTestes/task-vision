@@ -1,5 +1,8 @@
 "use client";
 
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 interface KanbanCardProps {
   id: string;
   title: string;
@@ -9,7 +12,16 @@ interface KanbanCardProps {
   onClick?: () => void;
 }
 
-export function KanbanCard({ title, hasDescription, dueDate, isDueCompleted, onClick }: KanbanCardProps) {
+export function KanbanCard({ id, title, hasDescription, dueDate, isDueCompleted, onClick }: KanbanCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
   // Due date display helpers
   const hasDue = !!dueDate;
   const dueDateObj = hasDue ? new Date(dueDate) : null;
@@ -18,12 +30,31 @@ export function KanbanCard({ title, hasDescription, dueDate, isDueCompleted, onC
     ? dueDateObj.toLocaleDateString("pt-BR", { day: "numeric", month: "short" })
     : "";
 
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    cursor: isDragging ? "grabbing" : "grab",
+  };
+
   return (
     <div
-      onClick={onClick}
-      className="bg-white rounded-lg shadow-sm border border-gray-200/80 px-3 py-2.5 cursor-pointer hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-150 group active:scale-[0.98]"
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        // Só dispara onClick se não estiver a arrastar
+        if (!isDragging && onClick) onClick();
+        e.stopPropagation();
+      }}
+      className={`bg-white rounded-lg shadow-sm border px-3 py-2.5 group transition-all duration-150 select-none
+        ${isDragging
+          ? "shadow-xl border-violet-400 rotate-[2deg] scale-[1.03] z-50"
+          : "border-gray-200/80 hover:bg-gray-50 hover:border-gray-300 hover:shadow-md active:scale-[0.98]"
+        }`}
     >
-      <p className="text-sm text-gray-800 leading-snug select-none">{title}</p>
+      <p className="text-sm text-gray-800 leading-snug">{title}</p>
       {/* Indicadores visuais */}
       <div className="mt-1.5 flex items-center gap-2 flex-wrap">
         {hasDescription && (

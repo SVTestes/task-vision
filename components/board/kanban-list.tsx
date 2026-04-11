@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { KanbanCard } from "./kanban-card";
 
 interface CardData {
@@ -58,7 +60,7 @@ function ExpandIcon() {
 export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpdateTitle }: KanbanListProps) {
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
-  
+
   // Title edition state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(title);
@@ -120,6 +122,9 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
     setAddingCard(false);
   }
 
+  // Hook do Droppable para a listagem de cards
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id });
+
   // Aguarda o carregamento do estado do localStorage (evita flash)
   if (isCollapsed === null) {
     return <div className="w-72 shrink-0" />;
@@ -131,7 +136,7 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
       <div
         className="shrink-0 flex flex-col items-center rounded-[20px] shadow-md transition-all duration-300 overflow-hidden"
         style={{
-          width: "3.25rem",      // 52px — mesma largura da imagem
+          width: "3.25rem",
           minHeight: "12rem",
           background: "rgba(241,245,249,0.92)",
           backdropFilter: "blur(8px)",
@@ -155,7 +160,6 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
             style={{
               writingMode: "vertical-rl",
               textOrientation: "mixed",
-              /* SEM rotate(180deg) → lê de cima ↓ para baixo */
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -203,7 +207,7 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
               }}
             />
           ) : (
-            <h3 
+            <h3
               onClick={() => setIsEditingTitle(true)}
               className="text-sm font-semibold text-slate-800 flex-1 min-h-[28px] flex items-center px-1.5 rounded cursor-pointer border border-transparent hover:bg-slate-200/50 break-words"
             >
@@ -221,7 +225,7 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
               <CollapseIcon />
             </button>
 
-            {/* Botão de menu (3 pontos — existente) */}
+            {/* Botão de menu (3 pontos) */}
             <button className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
               <svg
                 className="w-4 h-4"
@@ -241,19 +245,27 @@ export function KanbanList({ id, title, cards, onCreateCard, onCardClick, onUpda
         </div>
       </div>
 
-      {/* Cards — area scrollavel */}
-      <div className="flex-1 overflow-y-auto px-3 pb-1 space-y-2 min-h-0">
-        {cards.map((card) => (
-          <KanbanCard
-            key={card.id}
-            id={card.id}
-            title={card.title}
-            hasDescription={!!card.description}
-            dueDate={card.dueDate}
-            isDueCompleted={card.isDueCompleted}
-            onClick={() => onCardClick(card)}
-          />
-        ))}
+      {/* Cards — area scrollavel + droppable */}
+      <div
+        ref={setDropRef}
+        className={`flex-1 overflow-y-auto px-3 pb-1 space-y-2 min-h-0 transition-colors duration-150 ${
+          isOver ? "bg-violet-50/60 rounded-xl" : ""
+        }`}
+        style={{ minHeight: "2rem" }}
+      >
+        <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          {cards.map((card) => (
+            <KanbanCard
+              key={card.id}
+              id={card.id}
+              title={card.title}
+              hasDescription={!!card.description}
+              dueDate={card.dueDate}
+              isDueCompleted={card.isDueCompleted}
+              onClick={() => onCardClick(card)}
+            />
+          ))}
+        </SortableContext>
 
         {/* Input de novo card inline */}
         {addingCard && (
