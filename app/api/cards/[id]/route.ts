@@ -136,6 +136,19 @@ export async function PATCH(
       });
     }
 
+    // Notificação: conclusão/desconclusão do card
+    if (isDueCompleted !== undefined && isDueCompleted !== card.isDueCompleted) {
+      notifyCardMembers({
+        excludeUserId: user.id,
+        cardId: id,
+        boardId: card.list.board.id,
+        type: isDueCompleted ? "CARD_COMPLETED" : "CARD_UNCOMPLETED",
+        data: {
+          cardTitle: card.title,
+        },
+      });
+    }
+
     return NextResponse.json({ card: updated });
   } catch (err) {
     if (err instanceof Error && err.message === "Unauthorized") {

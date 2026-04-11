@@ -28,6 +28,8 @@ enum NotificationType {
   CARD_MOVED              // Card onde o user é membro foi movido de lista
   CHECKLIST_ITEM_ASSIGNED // User foi atribuído como responsável por um item de checklist
   CHECKLIST_ITEM_OVERDUE  // Item de checklist com dueDate vencido
+  CARD_COMPLETED          // Cartão foi marcado como concluído
+  CARD_UNCOMPLETED        // Cartão foi desmarcado (marcado como não concluído)
 }
 
 model User {

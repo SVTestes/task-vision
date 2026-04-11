@@ -40,6 +40,8 @@ const NOTIFICATION_ICONS: Record<string, string> = {
   CARD_MOVED: "🔄",
   CHECKLIST_ITEM_ASSIGNED: "☑️",
   CHECKLIST_ITEM_OVERDUE: "⚠️",
+  CARD_COMPLETED: "✅",
+  CARD_UNCOMPLETED: "↩️",
 };
 
 function getNotificationText(n: Notification): string {
@@ -57,6 +59,10 @@ function getNotificationText(n: Notification): string {
       return `"${cardTitle}" está com prazo vencido`;
     case "CARD_MOVED":
       return `${creatorName} moveu "${cardTitle}" de ${n.data?.fromList || "?"} para ${n.data?.toList || "?"}`;
+    case "CARD_COMPLETED":
+      return `${creatorName} concluiu o cartão "${cardTitle}"`;
+    case "CARD_UNCOMPLETED":
+      return `${creatorName} marcou o cartão "${cardTitle}" como não concluído`;
     case "CHECKLIST_ITEM_ASSIGNED": {
       const itemTitle = n.data?.itemTitle || "um item";
       const assigner = n.data?.assignerName || creatorName;
