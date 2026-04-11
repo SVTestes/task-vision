@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { KanbanCard } from "./kanban-card";
 
 interface CardData {
@@ -24,9 +24,56 @@ interface KanbanListProps {
   onCardClick: (card: CardData) => void;
 }
 
-export function KanbanList({ title, cards, onCreateCard, onCardClick }: KanbanListProps) {
+// Ícone: setas para dentro (colapsar)
+function CollapseIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l-4 4m0 0l4 4m-4-4h8m2-8l4 4m0 0l-4 4m4-4H9" />
+    </svg>
+  );
+}
+
+// Ícone: setas para fora (expandir)
+function ExpandIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l4-4m0 0l-4-4m4 4H7m-2 8l-4-4m0 0l4-4m-4 4h12" />
+    </svg>
+  );
+}
+
+export function KanbanList({ id, title, cards, onCreateCard, onCardClick }: KanbanListProps) {
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
+
+  // Estado de colapso — começa como null até ser lido do localStorage (evita hydration mismatch)
+  const [isCollapsed, setIsCollapsed] = useState<boolean | null>(null);
+
+  // Carrega o estado do localStorage ao montar no cliente
+  useEffect(() => {
+    const stored = localStorage.getItem(`list-collapsed-${id}`);
+    setIsCollapsed(stored === "true");
+  }, [id]);
+
+  function toggleCollapse() {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(`list-collapsed-${id}`, String(next));
+      return next;
+    });
+  }
 
   function handleSubmit() {
     if (!newCardTitle.trim()) return;
@@ -35,27 +82,84 @@ export function KanbanList({ title, cards, onCreateCard, onCardClick }: KanbanLi
     setAddingCard(false);
   }
 
+  // Aguarda o carregamento do estado do localStorage (evita flash)
+  if (isCollapsed === null) {
+    return <div className="w-72 shrink-0" />;
+  }
+
+  // ── Vista COLAPSADA ──────────────────────────────────────
+  if (isCollapsed) {
+    return (
+      <div className="shrink-0 w-14 bg-slate-100 rounded-2xl shadow-md flex flex-col items-center py-3 gap-3 transition-all duration-200">
+        {/* Botão de expandir */}
+        <button
+          onClick={toggleCollapse}
+          title="Expandir lista"
+          className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+        >
+          <ExpandIcon />
+        </button>
+
+        {/* Título vertical + contagem */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 min-h-0">
+          <span
+            className="text-xs font-semibold text-slate-700 select-none"
+            style={{
+              writingMode: "vertical-rl",
+              textOrientation: "mixed",
+              transform: "rotate(180deg)",
+              whiteSpace: "nowrap",
+              maxHeight: "180px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {title}
+          </span>
+          {/* Contagem de cartões */}
+          <span className="text-[11px] font-medium text-slate-400 bg-slate-200 rounded-full w-6 h-6 flex items-center justify-center">
+            {cards.length}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Vista EXPANDIDA (padrão) ─────────────────────────────
   return (
-    <div className="w-72 shrink-0 bg-slate-100 rounded-2xl flex flex-col max-h-full shadow-md">
+    <div className="w-72 shrink-0 bg-slate-100 rounded-2xl flex flex-col max-h-full shadow-md transition-all duration-200">
       {/* Header da lista — fixo no topo */}
       <div className="px-3 pt-3 pb-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-          <button className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
+        <div className="flex items-center justify-between gap-1">
+          <h3 className="text-sm font-semibold text-slate-800 flex-1 truncate">{title}</h3>
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            {/* Botão colapsar */}
+            <button
+              onClick={toggleCollapse}
+              title="Minimizar lista"
+              className="p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-              />
-            </svg>
-          </button>
+              <CollapseIcon />
+            </button>
+
+            {/* Botão de menu (3 pontos — existente) */}
+            <button className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
