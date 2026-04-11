@@ -125,7 +125,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-xs text-slate-600">
-          Feito por Carlos - SV Digital Ltda
+          Feito por Dart - SV Digital Ltda
         </p>
       </div>
     </main>
