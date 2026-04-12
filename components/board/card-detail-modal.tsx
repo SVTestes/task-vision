@@ -595,7 +595,7 @@ export function CardDetailModal({
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-12 overflow-y-auto"
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[768px] mx-4 mb-8 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] mx-4 mb-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Barra de topo */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -830,11 +830,7 @@ export function CardDetailModal({
                       </div>
                     );
                   })}
-                  {cardMembers.length === 0 && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-xs font-bold text-white">
-                      {userInitials}
-                    </div>
-                  )}
+                  {/* Removido o placeholder de membro inicial */}
                   <button
                     onClick={() => setShowMemberPicker(!showMemberPicker)}
                     className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors cursor-pointer"
